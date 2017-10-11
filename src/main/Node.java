@@ -11,4 +11,10 @@ public class Node {
         this.hostname = hostname;
         this.port = port;
     }
+
+    public boolean equals(Node node) {
+        if (!node.hostname.equalsIgnoreCase(this.hostname)) return false;
+        if (node.port != this.port) return false;
+        return true;
+    }
 }
