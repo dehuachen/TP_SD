@@ -61,27 +61,6 @@ public class Device extends Thread implements Callback {
         this.client.sendMessage(hostname, port, msg);
     }
 
-    private void broadcast(Node node) {
-        for (Node n: this.nodes) {
-            sendMessage(n.hostname, n.port, ADD+","+node.hostname+","+node.port);
-        }
-    }
-
-    private void sendListBack(Node node) {
-        sendMessage(node.hostname, node.port, ADD+","+self.hostname+","+self.port);
-        for (Node n: this.nodes) {
-            sendMessage(node.hostname, node.port, ADD+","+n.hostname+","+n.port);
-        }
-    }
-
-    private Node parseMsg(String msg) {
-        String[] strings = msg.split(",");
-        String hostname = strings[0];
-        int port = Integer.parseInt(strings[1]);
-
-        return new Node(hostname, port);
-    }
-
     private void addNode(String msg) {
 
         Node node = parseMsg(msg);
@@ -98,20 +77,25 @@ public class Device extends Thread implements Callback {
         Node node = parseMsg(msg);
         int time_ = getTime(msg);
         this.timestamp = Math.max(this.timestamp, time_);
+        node = findNodeRef(node);
 
         if (this.requesting) {
             if (this.printing) {
                 queue.add(node);
+                auto.put(node, false);
             } else {
                 // greater than local timestamp
                 if (checkTimestamp(msg)) {
-                    sendMessage(node.hostname, node.port, CONFIRM+","+this.self.hostname+","+this.self.port);
+                    this.timestamp++;
+                    sendMessage(node.hostname, node.port, formatMsg(self, CONFIRM));
                 } else {
                     queue.add(node);
+                    auto.put(node, false);
                 }
             }
         } else {
-            sendMessage(node.hostname, node.port, CONFIRM+","+this.self.hostname+","+this.self.port);
+            this.timestamp++;
+            sendMessage(node.hostname, node.port, formatMsg(self, CONFIRM));
         }
 
     }
@@ -120,13 +104,7 @@ public class Device extends Thread implements Callback {
 
         Node node = parseMsg(msg);
 
-        for (Node n: this.nodes) {
-            if (node.equals(n)) {
-                node = n;
-                break;
-            }
-        }
-
+        node = findNodeRef(node);
         auto.put(node, true);
 
         if (check()) {
@@ -155,7 +133,13 @@ public class Device extends Thread implements Callback {
     }
 
     private void sendRequest() {
-
+        this.timestamp++;
+        this.requesting_time = this.timestamp;
+        for (Node n: nodes) {
+            if (!auto.get(n)) {
+                sendMessage(n.hostname, n.port, formatMsg(self, REQUEST));
+            }
+        }
     }
 
     @Override
@@ -165,9 +149,12 @@ public class Device extends Thread implements Callback {
         while (true) {
 
             if (random.nextFloat() > 0.7) {
-                sendRequest();
-                this.requesting_time = this.timestamp + 1;
+                if (check()) {
+                    print();
+                    break;
+                }
                 this.requesting = true;
+                sendRequest();
                 try {
                     this.semaphore.acquire();
                     this.requesting = false;
@@ -198,11 +185,55 @@ public class Device extends Thread implements Callback {
         return true;
     }
 
-    // TODO
+    private Node parseMsg(String msg) {
+        String[] strings = msg.split(",");
+        String hostname = strings[0];
+        int port = Integer.parseInt(strings[1]);
+
+        return new Node(hostname, port);
+    }
+
     private void print() {
         this.printing = true;
 
+        for (int i = 0; i < 10; i++) {
+            this.printer.print(String.valueOf(this.timestamp + i));
+            sleep(500);
+        }
+
         this.printing = false;
+
+        if (!queue.isEmpty()) {
+            Node n = queue.remove();
+            this.timestamp++;
+            sendMessage(n.hostname, n.port, formatMsg(self, CONFIRM));
+        }
+    }
+
+    private String formatMsg(Node node, String type) {
+        return type+","+node.hostname+","+node.port+","+this.timestamp;
+    }
+
+    private void broadcast(Node node) {
+        for (Node n: this.nodes) {
+            sendMessage(n.hostname, n.port, ADD+","+node.hostname+","+node.port);
+        }
+    }
+
+    private void sendListBack(Node node) {
+        sendMessage(node.hostname, node.port, ADD+","+self.hostname+","+self.port);
+        for (Node n: this.nodes) {
+            sendMessage(node.hostname, node.port, ADD+","+n.hostname+","+n.port);
+        }
+    }
+
+    private Node findNodeRef(Node node) {
+        for (Node n: this.nodes) {
+            if (node.equals(n)) {
+                return n;
+            }
+        }
+        return null;
     }
 
 
