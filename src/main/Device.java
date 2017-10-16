@@ -19,6 +19,10 @@ public class Device extends Thread implements Callback {
     Queue<Node> queue;
     Semaphore semaphore;
     PrinterInterface printer;
+    private boolean requesting;
+    private boolean printing;
+    private int timestamp;
+    private int requesting_time;
 
     public Device(String hostname, int port, PrinterInterface printer) {
         this.client = new Client();
@@ -29,6 +33,9 @@ public class Device extends Thread implements Callback {
         this.nodes = new ArrayList<>();
         this.auto = new HashMap<>();
         this.queue = new ArrayDeque<>();
+        this.requesting = false;
+        this.printing = false;
+        this.timestamp = 0;
 
         this.semaphore = new Semaphore(1);
 
@@ -87,11 +94,42 @@ public class Device extends Thread implements Callback {
         nodes.add(node);
     }
 
+    private boolean checkTimestamp(String msg) {
+        int time_ = getTime(msg);
+
+        if (this.requesting_time < time_) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private int getTime(String msg) {
+        String time = msg.split(",")[2];
+        int time_ = Integer.valueOf(time);
+        return time_;
+    }
+
     private void receiveRequest(String msg) {
-
         Node node = parseMsg(msg);
+        int time_ = getTime(msg);
+        this.timestamp = Math.max(this.timestamp, time_);
+        
+        if (this.requesting) {
+            if (this.printing) {
+                queue.add(node);
+            } else {
+                // greater than local timestamp
+                if (checkTimestamp(msg)) {
+                    sendMessage(node.hostname, node.port, CONFIRM+","+this.self.hostname+","+this.self.port);
+                } else {
+                    queue.add(node);
+                }
+            }
+        } else {
+            sendMessage(node.hostname, node.port, CONFIRM+","+this.self.hostname+","+this.self.port);
+        }
 
-        queue.add(node);
     }
 
     private void receiveConfirm(String msg) {
@@ -132,10 +170,14 @@ public class Device extends Thread implements Callback {
 
     }
 
-    private void print() {}
+    private void print() {
+        this.printing = true;
+
+        this.printing = false;
+    }
 
     private void sendRequest() {
-        
+
     }
 
     @Override
@@ -146,8 +188,11 @@ public class Device extends Thread implements Callback {
 
             if (random.nextFloat() > 0.7) {
                 sendRequest();
+                this.requesting_time = this.timestamp + 1;
+                this.requesting = true;
                 try {
                     this.semaphore.acquire();
+                    this.requesting = false;
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
