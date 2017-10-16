@@ -94,27 +94,11 @@ public class Device extends Thread implements Callback {
         nodes.add(node);
     }
 
-    private boolean checkTimestamp(String msg) {
-        int time_ = getTime(msg);
-
-        if (this.requesting_time < time_) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private int getTime(String msg) {
-        String time = msg.split(",")[2];
-        int time_ = Integer.valueOf(time);
-        return time_;
-    }
-
     private void receiveRequest(String msg) {
         Node node = parseMsg(msg);
         int time_ = getTime(msg);
         this.timestamp = Math.max(this.timestamp, time_);
-        
+
         if (this.requesting) {
             if (this.printing) {
                 queue.add(node);
@@ -170,12 +154,6 @@ public class Device extends Thread implements Callback {
 
     }
 
-    private void print() {
-        this.printing = true;
-
-        this.printing = false;
-    }
-
     private void sendRequest() {
 
     }
@@ -202,6 +180,33 @@ public class Device extends Thread implements Callback {
         }
     }
 
+
+    // utils
+    private int getTime(String msg) {
+        String time = msg.split(",")[2];
+        int time_ = Integer.valueOf(time);
+        return time_;
+    }
+
+    private boolean checkTimestamp(String msg) {
+        int time_ = getTime(msg);
+
+        if (this.requesting_time < time_) {
+            return false;
+        }
+
+        return true;
+    }
+
+    // TODO
+    private void print() {
+        this.printing = true;
+
+        this.printing = false;
+    }
+
+
+    // global attributes
     public final static String ADD = "add";
     public final static String REQUEST = "request";
     public final static String CONFIRM = "confirm";
