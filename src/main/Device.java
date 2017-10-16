@@ -18,15 +18,25 @@ public class Device extends Thread implements Callback {
     HashMap<Node, Boolean> auto;
     Queue<Node> queue;
     Semaphore semaphore;
+    PrinterInterface printer;
 
-    public Device(String hostname, int port) {
+    public Device(String hostname, int port, PrinterInterface printer) {
         this.client = new Client();
         this.server = new Server(this, port);
+        this.printer = printer;
         this.self = new Node(hostname, port);
+
         this.nodes = new ArrayList<>();
         this.auto = new HashMap<>();
         this.queue = new ArrayDeque<>();
+
         this.semaphore = new Semaphore(1);
+
+        try {
+            this.semaphore.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         this.server.start();
     }
@@ -40,7 +50,7 @@ public class Device extends Thread implements Callback {
         return true;
     }
 
-    private void sendMessage(String hostname, int port, String msg) {
+    public void sendMessage(String hostname, int port, String msg) {
         this.client.sendMessage(hostname, port, msg);
     }
 
@@ -77,14 +87,14 @@ public class Device extends Thread implements Callback {
         nodes.add(node);
     }
 
-    private void request(String msg) {
+    private void receiveRequest(String msg) {
 
         Node node = parseMsg(msg);
 
         queue.add(node);
     }
 
-    private void confirm(String msg) {
+    private void receiveConfirm(String msg) {
 
         Node node = parseMsg(msg);
 
@@ -98,7 +108,8 @@ public class Device extends Thread implements Callback {
         auto.put(node, true);
 
         if (check()) {
-//            print();
+            this.semaphore.release();
+            print();
         }
 
     }
@@ -112,57 +123,38 @@ public class Device extends Thread implements Callback {
         if (action.equalsIgnoreCase(ADD)) {
             addNode(command[1]);
         } else if (action.equalsIgnoreCase(REQUEST)) {
-            request(command[1]);
+            receiveRequest(command[1]);
         } else if (action.equalsIgnoreCase(CONFIRM)) {
-            confirm(command[1]);
+            receiveConfirm(command[1]);
         }
 
         System.out.println("(" + this.self.hostname + ", " + this.self.port + "): "+ str);
 
     }
 
+    private void print() {}
+
+    private void sendRequest() {
+        
+    }
+
     @Override
     public void run() {
         Random random = new Random();
 
-        if (random.nextFloat() > 0.7) {
+        while (true) {
 
-        }
-    }
-
-    public static void startDevices() {
-
-        // create devices
-        Device[] ds = new Device[4];
-        for (int i=0; i<ds.length; i++) {
-            ds[i] = new Device("localhost", port_base + i);
-        }
-
-        // connect to each other
-        for (int i=0; i<ds.length; i++) {
-            sleep(1000);
-            if (i != 0) {
-                ds[i].sendMessage("localhost", port_base, ADD+","+ds[i].self.hostname+","+ds[i].self.port);
+            if (random.nextFloat() > 0.7) {
+                sendRequest();
+                try {
+                    this.semaphore.acquire();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
+
+            sleep(1000);
         }
-
-    }
-
-    public static void main(String... args) {
-
-//        startDevices();
-        Device a = new Device("localhost", 8080);
-        try {
-            System.out.println("sleep");
-            a.semaphore.acquire();
-            sleep(2000);
-            a.semaphore.release();
-            System.out.println("wake up");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-
     }
 
     public final static String ADD = "add";
