@@ -14,7 +14,7 @@ public class Client {
         Socket socket = null;
         try {
             socket = new Socket(hostName, port);
-            System.out.println("Establishing connection.");
+//            System.out.println("Establishing connection.");
             //opens a PrintWriter on the socket input autoflush mode
             out = new DataOutputStream(socket.getOutputStream());
             out.writeUTF(msg);

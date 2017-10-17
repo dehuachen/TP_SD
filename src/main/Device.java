@@ -84,7 +84,7 @@ public class Device extends Thread implements Callback {
                 queue.add(node);
                 auto.put(node, false);
             } else {
-                // greater than local timestamp
+                // greater than local requesting time
                 if (checkTimestamp(msg)) {
                     this.timestamp++;
                     sendMessage(node.hostname, node.port, formatMsg(self, CONFIRM));
@@ -103,13 +103,15 @@ public class Device extends Thread implements Callback {
     private void receiveConfirm(String msg) {
 
         Node node = parseMsg(msg);
-
+        int time_ = getTime(msg);
+        this.timestamp = Math.max(this.timestamp, time_);
         node = findNodeRef(node);
+
         auto.put(node, true);
 
         if (check()) {
+            System.out.println("(" + this.self.hostname + ", " + this.self.port + "): "+ auto.size());
             this.semaphore.release();
-            print();
         }
 
     }
@@ -148,21 +150,27 @@ public class Device extends Thread implements Callback {
 
         while (true) {
 
-            if (random.nextFloat() > 0.7) {
+            if (random.nextFloat() > 0.8) {
+                this.requesting = true;
+
+                // if there is nobody asked for printer since last use,
+                // print without asking.
                 if (check()) {
                     print();
-                    break;
-                }
-                this.requesting = true;
-                sendRequest();
-                try {
-                    this.semaphore.acquire();
-                    this.requesting = false;
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
 
+                // if someone have used then ask for who had used
+                } else {
+                    sendRequest();
+                    try {
+                        this.semaphore.acquire();
+                        print();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                this.requesting = false;
+            }
+            this.timestamp++;
             sleep(1000);
         }
     }
@@ -197,15 +205,16 @@ public class Device extends Thread implements Callback {
         this.printing = true;
 
         for (int i = 0; i < 10; i++) {
-            this.printer.print(String.valueOf(this.timestamp + i));
+            this.printer.print(self.hostname + self.port + ": " + String.valueOf(this.timestamp + i));
             sleep(500);
         }
 
         this.printing = false;
 
-        if (!queue.isEmpty()) {
+        if (!queue.isEmpty()) this.timestamp++;
+        while (!queue.isEmpty()) {
             Node n = queue.remove();
-            this.timestamp++;
+            this.auto.put(n, false);
             sendMessage(n.hostname, n.port, formatMsg(self, CONFIRM));
         }
     }

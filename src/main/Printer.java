@@ -8,6 +8,6 @@ public class Printer implements PrinterInterface{
 
     @Override
     public void print(String msg) {
-
+        System.out.println(msg);
     }
 }

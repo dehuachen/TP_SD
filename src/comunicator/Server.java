@@ -25,7 +25,7 @@ public class Server extends Thread{
         try {
             // listen for incoming connections on port 15432
             ServerSocket socket = new ServerSocket(this.port);
-            System.out.println("Server listening on port " + this.port);
+//            System.out.println("Server listening on port " + this.port);
 
             // loop (forever) until program is stopped
             while(true) {
@@ -35,7 +35,7 @@ public class Server extends Thread{
                 // output to the client
                 Thread thrd = new Thread(new ServerThread(client));
                 thrd.start();
-                System.out.println("Thread " + thrd.getId() + " started.");
+//                System.out.println("Thread " + thrd.getId() + " started.");
 
             }
         }
@@ -54,7 +54,7 @@ public class Server extends Thread{
         }
 
         public void run() {
-            System.out.println("Accepted connection. ");
+//            System.out.println("Accepted connection. ");
 
             try {
                 // open a new PrintWriter and BufferedReader on the socket
@@ -76,7 +76,7 @@ public class Server extends Thread{
                 catch (IOException e) {
                     e.printStackTrace();
                 }
-                System.out.println("Output closed.");
+//                System.out.println("Output closed.");
             }
         }
     }
