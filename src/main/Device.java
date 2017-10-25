@@ -16,6 +16,7 @@ public class Device extends Thread implements Callback {
     Node self;
     ArrayList<Node> nodes;
     HashMap<Node, Boolean> auto;
+    HashMap<Node, Boolean> reply;
     Queue<Node> queue;
     Semaphore semaphore;
     PrinterInterface printer;
@@ -82,15 +83,14 @@ public class Device extends Thread implements Callback {
         if (this.requesting) {
             if (this.printing) {
                 queue.add(node);
-                auto.put(node, false);
             } else {
                 // greater than local requesting time
                 if (checkTimestamp(msg)) {
                     this.timestamp++;
                     sendMessage(node.hostname, node.port, formatMsg(self, CONFIRM));
+                    auto.put(node, false);
                 } else {
                     queue.add(node);
-                    auto.put(node, false);
                 }
             }
         } else {
@@ -171,7 +171,7 @@ public class Device extends Thread implements Callback {
                 this.requesting = false;
             }
             this.timestamp++;
-            sleep(1000);
+            sleep(2000);
         }
     }
 
@@ -188,6 +188,13 @@ public class Device extends Thread implements Callback {
 
         if (this.requesting_time < time_) {
             return false;
+        } else if (this.requesting_time == time_) {
+            Node node = parseMsg(msg);
+            if (node.port < self.port) {
+                return true;
+            } else {
+                return false;
+            }
         }
 
         return true;
