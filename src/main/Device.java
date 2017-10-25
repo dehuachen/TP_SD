@@ -16,7 +16,7 @@ public class Device extends Thread implements Callback {
     Node self;
     ArrayList<Node> nodes;
     HashMap<Node, Boolean> auto;
-    HashMap<Node, Boolean> reply;
+    Set<Node> replyed;
     Queue<Node> queue;
     Semaphore semaphore;
     PrinterInterface printer;
@@ -32,6 +32,7 @@ public class Device extends Thread implements Callback {
         this.self = new Node(hostname, port);
 
         this.nodes = new ArrayList<>();
+        this.replyed = new HashSet<>();
         this.auto = new HashMap<>();
         this.queue = new ArrayDeque<>();
         this.requesting = false;
@@ -63,7 +64,6 @@ public class Device extends Thread implements Callback {
     }
 
     private void addNode(String msg) {
-
         Node node = parseMsg(msg);
 
         if (this.self.port == port_base) {
@@ -72,6 +72,7 @@ public class Device extends Thread implements Callback {
         }
         auto.put(node, false);
         nodes.add(node);
+        replyed.add(node);
     }
 
     private void receiveRequest(String msg) {
@@ -88,7 +89,7 @@ public class Device extends Thread implements Callback {
                 if (checkTimestamp(msg)) {
                     this.timestamp++;
                     sendMessage(node.hostname, node.port, formatMsg(self, CONFIRM));
-                    auto.put(node, false);
+                    replyed.add(node);
                 } else {
                     queue.add(node);
                 }
@@ -96,6 +97,7 @@ public class Device extends Thread implements Callback {
         } else {
             this.timestamp++;
             sendMessage(node.hostname, node.port, formatMsg(self, CONFIRM));
+            replyed.add(node);
         }
 
     }
@@ -110,7 +112,6 @@ public class Device extends Thread implements Callback {
         auto.put(node, true);
 
         if (check()) {
-            System.out.println("(" + this.self.hostname + ", " + this.self.port + "): "+ auto.size());
             this.semaphore.release();
         }
 
@@ -137,11 +138,11 @@ public class Device extends Thread implements Callback {
     private void sendRequest() {
         this.timestamp++;
         this.requesting_time = this.timestamp;
-        for (Node n: nodes) {
-            if (!auto.get(n)) {
-                sendMessage(n.hostname, n.port, formatMsg(self, REQUEST));
-            }
+        for (Node n: replyed) {
+            sendMessage(n.hostname, n.port, formatMsg(self, REQUEST));
+            auto.put(n, false);
         }
+        replyed.clear();
     }
 
     @Override
@@ -155,7 +156,8 @@ public class Device extends Thread implements Callback {
 
                 // if there is nobody asked for printer since last use,
                 // print without asking.
-                if (check()) {
+//                if (check()) {
+                if (replyed.size() == 0) {
                     print();
 
                 // if someone have used then ask for who had used
@@ -212,7 +214,7 @@ public class Device extends Thread implements Callback {
         this.printing = true;
 
         for (int i = 0; i < 10; i++) {
-            this.printer.print(self.hostname + self.port + ": " + String.valueOf(this.timestamp + i));
+            this.printer.print(self.hostname + self.port + ": " + String.valueOf(this.requesting_time + i));
             sleep(500);
         }
 
@@ -221,8 +223,8 @@ public class Device extends Thread implements Callback {
         if (!queue.isEmpty()) this.timestamp++;
         while (!queue.isEmpty()) {
             Node n = queue.remove();
-            this.auto.put(n, false);
             sendMessage(n.hostname, n.port, formatMsg(self, CONFIRM));
+            replyed.add(n);
         }
     }
 
