@@ -59,24 +59,8 @@ public class Device extends Thread implements Callback {
         return true;
     }
 
-    public void sendMessage(String hostname, int port, String msg) {
-        this.client.sendMessage(hostname, port, msg);
-    }
-
-    private void addNode(String msg) {
-        Node node = parseMsg(msg);
-
-        if (this.self.port == port_base) {
-            broadcast(node);
-            sendListBack(node);
-        }
-        auto.put(node, false);
-        nodes.add(node);
-        replyed.add(node);
-    }
-
     private void receiveRequest(String msg) {
-        Node node = parseMsg(msg);
+        Node node = getNodeFromMsg(msg);
         int time_ = getTime(msg);
         this.timestamp = Math.max(this.timestamp, time_);
         node = findNodeRef(node);
@@ -104,7 +88,7 @@ public class Device extends Thread implements Callback {
 
     private void receiveConfirm(String msg) {
 
-        Node node = parseMsg(msg);
+        Node node = getNodeFromMsg(msg);
         int time_ = getTime(msg);
         this.timestamp = Math.max(this.timestamp, time_);
         node = findNodeRef(node);
@@ -131,8 +115,9 @@ public class Device extends Thread implements Callback {
             receiveConfirm(command[1]);
         }
 
-        System.out.println("(" + this.self.hostname + ", " + this.self.port + "): "+ str);
-
+        if (Main.SHOW_MSG) {
+            System.out.println("(" + this.self.hostname + ", " + this.self.port + "): " + str);
+        }
     }
 
     private void sendRequest() {
@@ -191,7 +176,7 @@ public class Device extends Thread implements Callback {
         if (this.requesting_time < time_) {
             return false;
         } else if (this.requesting_time == time_) {
-            Node node = parseMsg(msg);
+            Node node = getNodeFromMsg(msg);
             if (node.port < self.port) {
                 return true;
             } else {
@@ -202,7 +187,7 @@ public class Device extends Thread implements Callback {
         return true;
     }
 
-    private Node parseMsg(String msg) {
+    private Node getNodeFromMsg(String msg) {
         String[] strings = msg.split(",");
         String hostname = strings[0];
         int port = Integer.parseInt(strings[1]);
@@ -243,6 +228,22 @@ public class Device extends Thread implements Callback {
         for (Node n: this.nodes) {
             sendMessage(node.hostname, node.port, ADD+","+n.hostname+","+n.port);
         }
+    }
+
+    public void sendMessage(String hostname, int port, String msg) {
+        this.client.sendMessage(hostname, port, msg);
+    }
+
+    private void addNode(String msg) {
+        Node node = getNodeFromMsg(msg);
+
+        if (this.self.port == port_base) {
+            broadcast(node);
+            sendListBack(node);
+        }
+        auto.put(node, false);
+        nodes.add(node);
+        replyed.add(node);
     }
 
     private Node findNodeRef(Node node) {

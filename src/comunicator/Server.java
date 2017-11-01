@@ -23,25 +23,14 @@ public class Server extends Thread{
 
     public void startServer() {
         try {
-            // listen for incoming connections on port 15432
             ServerSocket socket = new ServerSocket(this.port);
-//            System.out.println("Server listening on port " + this.port);
 
-            // loop (forever) until program is stopped
             while(true) {
-                // accept a new connection
                 Socket client = socket.accept();
-                // start a new ServerThread to handle the connection and send
-                // output to the client
                 Thread thrd = new Thread(new ServerThread(client));
                 thrd.start();
-//                System.out.println("Thread " + thrd.getId() + " started.");
-
             }
-        }
-        catch (IOException ioe){
-            ioe.printStackTrace();
-        }
+        } catch (IOException ioe){ ioe.printStackTrace(); }
     }
 
 
@@ -54,29 +43,16 @@ public class Server extends Thread{
         }
 
         public void run() {
-//            System.out.println("Accepted connection. ");
-
             try {
-                // open a new PrintWriter and BufferedReader on the socket
+
                 input = new DataInputStream(client.getInputStream());
-
                 String inString = input.readUTF();
+                callback.callback(inString); // notify the device
 
-                // run the command using CommandExecutor and get its output
-                callback.callback(inString);
-            }
-            catch (IOException e) {
-                e.printStackTrace();
-            }
+            } catch (IOException e) { e.printStackTrace(); }
             finally {
-                // close the connection to the client
-                try {
-                    client.close();
-                }
-                catch (IOException e) {
-                    e.printStackTrace();
-                }
-//                System.out.println("Output closed.");
+                try { client.close(); }
+                catch (IOException e) { e.printStackTrace(); }
             }
         }
     }

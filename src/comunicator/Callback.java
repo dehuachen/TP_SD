@@ -6,4 +6,5 @@ package comunicator;
 public interface Callback {
 
     void callback(String str);
+
 }

@@ -5,10 +5,11 @@ package main;
  */
 public class Main {
 
+    public static boolean SHOW_MSG = false;
+
     public static void startDevices(int num_hosts) {
 
         Printer printer = new Printer();
-//        int num_hosts = 6;
 
         // create devices
         println("Creating hosts...");
@@ -50,20 +51,20 @@ public class Main {
 
 
     public static void main(String... args) {
-        int num_hosts = Integer.parseInt(args[0]);
+
+        int num_args = args.length;
+
+        int num_hosts = 6;
+
+        if (num_args > 0) {
+            num_hosts = Integer.parseInt(args[0]);
+        }
+
+        if (num_args > 1) {
+            SHOW_MSG = Boolean.parseBoolean(args[1]);
+        }
 
         startDevices(num_hosts);
-//        Device a = new Device("localhost", 8080);
-//        try {
-//            System.out.println("sleep");
-//            a.semaphore.acquire();
-//            sleep(2000);
-////            a.semaphore.release();
-//            System.out.println("wake up");
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-
 
     }
 
